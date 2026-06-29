@@ -20,38 +20,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Sarabun','Noto Sans Thai',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  /* ========== LOGIN ========== */
-  #login-screen {
-    display: flex; align-items: center; justify-content: center;
-    min-height: 100vh; background: var(--bg);
-  }
-  .login-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
-    padding: 48px 40px; width: 400px; text-align: center;
-  }
-  .login-logo { font-size: 40px; margin-bottom: 8px; }
-  .login-title { font-size: 24px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
-  .login-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; }
-  .login-field { margin-bottom: 14px; text-align: left; }
-  .login-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-  .login-field input {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 11px 14px; color: var(--text); font-size: 14px;
-    font-family: inherit; outline: none; transition: border 0.2s;
-  }
-  .login-field input:focus { border-color: var(--primary); }
-  .btn-login {
-    width: 100%; background: var(--primary); border: none; color: #fff; border-radius: 10px;
-    padding: 12px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px;
-    font-family: inherit; transition: background 0.15s;
-  }
-  .btn-login:hover { background: var(--primary-dark); }
-  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
-  .login-error { color: #f87171; font-size: 13px; margin-top: 12px; min-height: 18px; }
-
   /* ========== APP ========== */
-  #app { display: none; }
-  #app.visible { display: flex; }
+  #app { display: flex; }
 
   /* SIDEBAR */
   #sidebar {
@@ -253,25 +223,6 @@
 </head>
 <body>
 
-<!-- ========== LOGIN ========== -->
-<div id="login-screen">
-  <div class="login-card">
-    <div class="login-logo">🚀</div>
-    <div class="login-title">ติดจรวด</div>
-    <div class="login-sub">Internal Knowledge Base — เข้าสู่ระบบเพื่อใช้งาน</div>
-    <div class="login-field">
-      <label>อีเมลบริษัท</label>
-      <input type="email" id="login-email" placeholder="you@tidjaruad.com" autocomplete="email">
-    </div>
-    <div class="login-field">
-      <label>รหัสผ่าน</label>
-      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button class="btn-login" id="btn-login" onclick="handleLogin()">เข้าสู่ระบบ</button>
-    <div class="login-error" id="login-error"></div>
-  </div>
-</div>
-
 <!-- ========== APP ========== -->
 <div id="app">
   <!-- SIDEBAR -->
@@ -280,10 +231,7 @@
       <div class="logo-title">🚀 ติดจรวด</div>
       <div class="logo-sub">Internal Knowledge Base</div>
     </div>
-    <div class="user-chip">
-      <span class="user-email" id="user-email-display">—</span>
-      <button class="btn-logout" onclick="handleLogout()" title="ออกจากระบบ">⏏</button>
-    </div>
+
     <div class="nav-section">
       <div class="nav-label">ภาพรวม</div>
       <button class="nav-item active" onclick="showPage('home')">
@@ -403,38 +351,6 @@ let articles = [];
 let currentPage = 'home';
 let currentArticleId = null;
 
-// ========== AUTH ==========
-async function handleLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  const btn = document.getElementById('btn-login');
-  errEl.textContent = '';
-  if (!email || !pass) { errEl.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
-  btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ...';
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-  btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
-  if (error) { errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'; return; }
-  showApp(data.user);
-}
-
-async function handleLogout() {
-  await sb.auth.signOut();
-  document.getElementById('app').classList.remove('visible');
-  document.getElementById('login-screen').style.display = 'flex';
-}
-
-function showApp(user) {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').classList.add('visible');
-  document.getElementById('user-email-display').textContent = user.email;
-  loadArticles();
-}
-
-document.getElementById('login-password').addEventListener('keydown', e => {
-  if (e.key === 'Enter') handleLogin();
-});
-
 // ========== DATA ==========
 async function loadArticles() {
   const { data, error } = await sb.from('articles').select('*').order('created_at', { ascending: false });
@@ -453,8 +369,7 @@ async function submitArticle() {
   if (!title) { alert('กรุณาใส่ชื่อบทความ'); return; }
   const btn = document.getElementById('btn-submit');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-  const { data: { user } } = await sb.auth.getUser();
-  const payload = { title, cat, summary, content, author: user.email };
+  const payload = { title, cat, summary, content, author: 'ทีมติดจรวด' };
   let error;
   if (id) {
     ({ error } = await sb.from('articles').update(payload).eq('id', id));
@@ -632,9 +547,7 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 });
 
-sb.auth.getSession().then(({ data: { session } }) => {
-  if (session) showApp(session.user);
-});
+loadArticles();
 </script>
 </body>
 </html>
