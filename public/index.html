@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ติดจรวด — Knowledge Base</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --primary: #FF4D4D;
+    --primary-dark: #cc2222;
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #2e2e3e;
+    --text: #f0f0f5;
+    --text-muted: #888899;
+    --sidebar-w: 260px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sarabun','Noto Sans Thai',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ========== LOGIN ========== */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; background: var(--bg);
+  }
+  .login-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 48px 40px; width: 400px; text-align: center;
+  }
+  .login-logo { font-size: 40px; margin-bottom: 8px; }
+  .login-title { font-size: 24px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .login-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; }
+  .login-field { margin-bottom: 14px; text-align: left; }
+  .login-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+  .login-field input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; color: var(--text); font-size: 14px;
+    font-family: inherit; outline: none; transition: border 0.2s;
+  }
+  .login-field input:focus { border-color: var(--primary); }
+  .btn-login {
+    width: 100%; background: var(--primary); border: none; color: #fff; border-radius: 10px;
+    padding: 12px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px;
+    font-family: inherit; transition: background 0.15s;
+  }
+  .btn-login:hover { background: var(--primary-dark); }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+  .login-error { color: #f87171; font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+  /* ========== APP ========== */
+  #app { display: none; }
+  #app.visible { display: flex; }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: var(--sidebar-w); min-height: 100vh; background: var(--surface);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; overflow-y: auto;
+  }
+  .logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+  .logo-title { font-size: 20px; font-weight: 800; color: var(--primary); }
+  .logo-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .user-chip {
+    margin: 12px 12px 0; padding: 10px 12px; background: var(--surface2);
+    border-radius: 8px; font-size: 12px; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .user-chip .user-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+  .btn-logout { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 2px; }
+  .btn-logout:hover { color: var(--primary); }
+  .nav-section { padding: 14px 12px 4px; }
+  .nav-label { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 1.2px; text-transform: uppercase; padding: 0 8px 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--text-muted);
+    transition: all 0.15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(255,77,77,0.15); color: var(--primary); font-weight: 600; }
+  .nav-badge { margin-left: auto; font-size: 11px; background: var(--surface2); color: var(--text-muted); border-radius: 10px; padding: 1px 7px; }
+  .nav-item.active .nav-badge { background: rgba(255,77,77,0.2); color: var(--primary); }
+
+  /* MAIN */
+  #main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  #topbar {
+    position: sticky; top: 0; z-index: 50; background: var(--bg);
+    border-bottom: 1px solid var(--border); padding: 14px 28px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  #search-box {
+    flex: 1; max-width: 520px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 16px 10px 40px; color: var(--text); font-size: 14px;
+    outline: none; transition: border 0.2s; font-family: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23888899' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 14px center;
+  }
+  #search-box:focus { border-color: var(--primary); }
+  #search-box::placeholder { color: var(--text-muted); }
+  .btn-new {
+    background: var(--primary); color: #fff; border: none; border-radius: 8px;
+    padding: 9px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; font-family: inherit; white-space: nowrap;
+  }
+  .btn-new:hover { background: var(--primary-dark); }
+
+  /* CONTENT */
+  #content { padding: 28px; flex: 1; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-header { margin-bottom: 24px; }
+  .page-header h1 { font-size: 24px; font-weight: 800; }
+  .page-header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .stat-card:hover { border-color: var(--primary); }
+  .stat-icon { font-size: 24px; }
+  .stat-num { font-size: 20px; font-weight: 800; }
+  .stat-label { font-size: 11px; color: var(--text-muted); }
+
+  /* CARDS */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .card.sop::before { background: #3b82f6; }
+  .card.product::before { background: #10b981; }
+  .card.hr::before { background: #8b5cf6; }
+  .card.marketing::before { background: #f59e0b; }
+  .card.org::before { background: #06b6d4; }
+  .card.template::before { background: #ec4899; }
+  .card:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,77,77,0.1); }
+  .card-tag {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+  }
+  .card-tag.sop { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .card-tag.product { background: rgba(16,185,129,0.15); color: #34d399; }
+  .card-tag.hr { background: rgba(139,92,246,0.15); color: #a78bfa; }
+  .card-tag.marketing { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .card-tag.org { background: rgba(6,182,212,0.15); color: #22d3ee; }
+  .card-tag.template { background: rgba(236,72,153,0.15); color: #f472b6; }
+  .card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; line-height: 1.4; }
+  .card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .card-meta { font-size: 11px; color: var(--text-muted); }
+  .card-actions { display: flex; gap: 6px; }
+  .btn-edit, .btn-delete {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 8px; font-size: 11px; cursor: pointer; font-family: inherit;
+    color: var(--text-muted); transition: all 0.15s;
+  }
+  .btn-edit:hover { border-color: #60a5fa; color: #60a5fa; }
+  .btn-delete:hover { border-color: #f87171; color: #f87171; }
+
+  /* ARTICLE */
+  #article-overlay {
+    display: none; position: fixed; top: 0; left: var(--sidebar-w); right: 0; bottom: 0;
+    background: var(--bg); z-index: 200; overflow-y: auto;
+  }
+  #article-overlay.open { display: block; }
+  .article-topbar {
+    position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 14px 28px; display: flex; align-items: center; gap: 12px; z-index: 10;
+  }
+  .btn-back {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .btn-back:hover { background: var(--surface2); }
+  .article-body { max-width: 760px; margin: 0 auto; padding: 36px 28px 60px; }
+  .article-body h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+  .article-meta-bar { color: var(--text-muted); font-size: 13px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .article-body h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; }
+  .article-body h3 { font-size: 15px; font-weight: 700; margin: 20px 0 8px; }
+  .article-body p { font-size: 14px; line-height: 1.8; color: #c8c8d8; margin-bottom: 14px; }
+  .article-body ul, .article-body ol { padding-left: 22px; margin-bottom: 14px; }
+  .article-body li { font-size: 14px; line-height: 1.8; color: #c8c8d8; margin-bottom: 4px; }
+  .article-body .tip { background: rgba(59,130,246,0.1); border-left: 3px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 16px 0; font-size: 14px; line-height: 1.7; }
+  .article-body .warn { background: rgba(245,158,11,0.1); border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 16px 0; font-size: 14px; line-height: 1.7; }
+  .article-body .success { background: rgba(16,185,129,0.1); border-left: 3px solid #10b981; border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 16px 0; font-size: 14px; line-height: 1.7; }
+  .article-body table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .article-body th { background: var(--surface2); padding: 10px 14px; text-align: left; font-weight: 700; border: 1px solid var(--border); }
+  .article-body td { padding: 9px 14px; border: 1px solid var(--border); color: #c8c8d8; }
+  .step-list { counter-reset: steps; list-style: none; padding: 0; }
+  .step-list li { counter-increment: steps; display: flex; gap: 14px; margin-bottom: 16px; align-items: flex-start; }
+  .step-list li::before {
+    content: counter(steps); min-width: 28px; height: 28px; background: var(--primary);
+    color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+  }
+
+  /* SEARCH */
+  #search-results { display: none; }
+  #search-results.visible { display: block; }
+  .result-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s; }
+  .result-item:hover { border-color: var(--primary); }
+  .result-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .result-snippet { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .result-tag { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+  mark { background: rgba(255,77,77,0.25); color: var(--primary); border-radius: 2px; padding: 0 2px; }
+
+  /* MODAL */
+  #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto; }
+  #modal-overlay.open { display: flex; }
+  #modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 640px; }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h2 { font-size: 18px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+  .modal-body { padding: 20px 24px 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px;
+    font-family: inherit; outline: none; transition: border 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+  .form-group textarea { min-height: 200px; resize: vertical; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
+  .btn-cancel { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer; font-family: inherit; }
+  .btn-submit { background: var(--primary); border: none; color: #fff; border-radius: 8px; padding: 9px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-submit:hover { background: var(--primary-dark); }
+
+  /* LOADING */
+  .loading { text-align: center; padding: 60px; color: var(--text-muted); }
+  .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 768px) {
+    :root { --sidebar-w: 0px; }
+    #sidebar { display: none; }
+    #article-overlay { left: 0; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== LOGIN ========== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🚀</div>
+    <div class="login-title">ติดจรวด</div>
+    <div class="login-sub">Internal Knowledge Base — เข้าสู่ระบบเพื่อใช้งาน</div>
+    <div class="login-field">
+      <label>อีเมลบริษัท</label>
+      <input type="email" id="login-email" placeholder="you@tidjaruad.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>รหัสผ่าน</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-login" id="btn-login" onclick="handleLogin()">เข้าสู่ระบบ</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ========== APP ========== -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="logo">
+      <div class="logo-title">🚀 ติดจรวด</div>
+      <div class="logo-sub">Internal Knowledge Base</div>
+    </div>
+    <div class="user-chip">
+      <span class="user-email" id="user-email-display">—</span>
+      <button class="btn-logout" onclick="handleLogout()" title="ออกจากระบบ">⏏</button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">ภาพรวม</div>
+      <button class="nav-item active" onclick="showPage('home')">
+        <span>🏠</span> หน้าหลัก
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">หมวดหมู่</div>
+      <button class="nav-item" onclick="showPage('sop')"><span>📋</span> SOP / ขั้นตอนงาน<span class="nav-badge" id="badge-sop">0</span></button>
+      <button class="nav-item" onclick="showPage('product')"><span>📦</span> สินค้า / บริการ<span class="nav-badge" id="badge-product">0</span></button>
+      <button class="nav-item" onclick="showPage('hr')"><span>👥</span> HR / นโยบาย<span class="nav-badge" id="badge-hr">0</span></button>
+      <button class="nav-item" onclick="showPage('marketing')"><span>🎯</span> Marketing / TikTok<span class="nav-badge" id="badge-marketing">0</span></button>
+      <button class="nav-item" onclick="showPage('org')"><span>🏢</span> องค์กร / Workflow<span class="nav-badge" id="badge-org">0</span></button>
+      <button class="nav-item" onclick="showPage('template')"><span>📝</span> เทมเพลต / ฟอร์ม<span class="nav-badge" id="badge-template">0</span></button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="topbar">
+      <input type="text" id="search-box" placeholder="🔍  ค้นหาบทความ, คำสำคัญ..." oninput="handleSearch(this.value)">
+      <button class="btn-new" onclick="openModal()">✏️ เพิ่มบทความ</button>
+    </div>
+    <div id="content">
+
+      <!-- SEARCH -->
+      <div id="search-results">
+        <div class="page-header"><h1>ผลการค้นหา</h1><p id="search-summary"></p></div>
+        <div id="search-list"></div>
+      </div>
+
+      <!-- HOME -->
+      <div class="page active" id="page-home">
+        <div class="page-header">
+          <h1>🚀 ยินดีต้อนรับสู่ Knowledge Base</h1>
+          <p>ศูนย์รวมความรู้ภายในองค์กร ติดจรวด</p>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card" onclick="showPage('sop')"><div class="stat-icon">📋</div><div><div class="stat-num" id="stat-sop">—</div><div class="stat-label">SOP</div></div></div>
+          <div class="stat-card" onclick="showPage('product')"><div class="stat-icon">📦</div><div><div class="stat-num" id="stat-product">—</div><div class="stat-label">สินค้า</div></div></div>
+          <div class="stat-card" onclick="showPage('hr')"><div class="stat-icon">👥</div><div><div class="stat-num" id="stat-hr">—</div><div class="stat-label">HR</div></div></div>
+          <div class="stat-card" onclick="showPage('marketing')"><div class="stat-icon">🎯</div><div><div class="stat-num" id="stat-marketing">—</div><div class="stat-label">Marketing</div></div></div>
+          <div class="stat-card" onclick="showPage('org')"><div class="stat-icon">🏢</div><div><div class="stat-num" id="stat-org">—</div><div class="stat-label">องค์กร</div></div></div>
+        </div>
+        <div class="page-header"><h1 style="font-size:18px">บทความล่าสุด</h1></div>
+        <div class="cards-grid" id="home-cards"><div class="loading"><div class="spinner"></div><p>กำลังโหลด...</p></div></div>
+      </div>
+
+      <!-- CATEGORY PAGES -->
+      <div class="page" id="page-sop"><div class="page-header"><h1>📋 SOP / ขั้นตอนการทำงาน</h1><p>คู่มือและขั้นตอนการปฏิบัติงานมาตรฐาน</p></div><div class="cards-grid" id="sop-cards"></div></div>
+      <div class="page" id="page-product"><div class="page-header"><h1>📦 ข้อมูลสินค้า / บริการ</h1><p>รายละเอียดสินค้า บริการ และข้อมูลสำหรับการขาย</p></div><div class="cards-grid" id="product-cards"></div></div>
+      <div class="page" id="page-hr"><div class="page-header"><h1>👥 HR / นโยบายบริษัท</h1><p>กฎระเบียบ สวัสดิการ และนโยบายของบริษัท ติดจรวด</p></div><div class="cards-grid" id="hr-cards"></div></div>
+      <div class="page" id="page-marketing"><div class="page-header"><h1>🎯 Marketing / TikTok</h1><p>คู่มือ TikTok Ads, Content Strategy และกลยุทธ์การตลาด</p></div><div class="cards-grid" id="marketing-cards"></div></div>
+      <div class="page" id="page-org"><div class="page-header"><h1>🏢 องค์กรและ Workflow</h1><p>แผนผังองค์กร การทำงานร่วมกัน และตาราง RACI</p></div><div class="cards-grid" id="org-cards"></div></div>
+      <div class="page" id="page-template"><div class="page-header"><h1>📝 เทมเพลตและฟอร์มพร้อมใช้</h1><p>ฟอร์มและเทมเพลตที่ใช้บ่อยในการทำงาน</p></div><div class="cards-grid" id="template-cards"></div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ARTICLE OVERLAY -->
+<div id="article-overlay">
+  <div class="article-topbar">
+    <button class="btn-back" onclick="closeArticle()">← กลับ</button>
+    <span id="article-breadcrumb" style="font-size:13px;color:var(--text-muted)"></span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn-edit" id="article-edit-btn" onclick="editCurrentArticle()" style="padding:6px 14px;font-size:13px">✏️ แก้ไข</button>
+      <button class="btn-delete" id="article-delete-btn" onclick="deleteCurrentArticle()" style="padding:6px 14px;font-size:13px">🗑️ ลบ</button>
+    </div>
+  </div>
+  <div class="article-body" id="article-body"></div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">✏️ เพิ่มบทความใหม่</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="form-group"><label>ชื่อบทความ *</label><input type="text" id="new-title" placeholder="เช่น วิธีสร้าง TikTok Ad Campaign"></div>
+      <div class="form-group">
+        <label>หมวดหมู่ *</label>
+        <select id="new-cat">
+          <option value="sop">📋 SOP / ขั้นตอนงาน</option>
+          <option value="product">📦 สินค้า / บริการ</option>
+          <option value="hr">👥 HR / นโยบาย</option>
+          <option value="marketing">🎯 Marketing / TikTok</option>
+          <option value="org">🏢 องค์กร / Workflow</option>
+          <option value="template">📝 เทมเพลต / ฟอร์ม</option>
+        </select>
+      </div>
+      <div class="form-group"><label>สรุปย่อ</label><input type="text" id="new-summary" placeholder="อธิบายสั้นๆ ว่าบทความนี้เกี่ยวกับอะไร"></div>
+      <div class="form-group">
+        <label>เนื้อหา (รองรับ HTML)</label>
+        <textarea id="new-content" placeholder="&lt;p&gt;เนื้อหาบทความ...&lt;/p&gt;&#10;&lt;h2&gt;หัวข้อ&lt;/h2&gt;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">ยกเลิก</button>
+        <button class="btn-submit" onclick="submitArticle()" id="btn-submit">บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== CONFIG ==========
+const SUPABASE_URL = 'https://pugrvgdovdndnmosicvw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1Z3J2Z2RvdmRuZG5tb3NpY3Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTM4OTAsImV4cCI6MjA5ODI4OTg5MH0.Wmk2gbRSP3NfFx3eHEXPzSaQgHCVyTeuoE9UIEYLAaA';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ========== STATE ==========
+let articles = [];
+let currentPage = 'home';
+let currentArticleId = null;
+
+// ========== AUTH ==========
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('btn-login');
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
+  btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+  if (error) { errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'; return; }
+  showApp(data.user);
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function showApp(user) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('user-email-display').textContent = user.email;
+  loadArticles();
+}
+
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleLogin();
+});
+
+// ========== DATA ==========
+async function loadArticles() {
+  const { data, error } = await sb.from('articles').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  articles = data || [];
+  renderAll();
+  updateBadges();
+}
+
+async function submitArticle() {
+  const id = document.getElementById('edit-id').value;
+  const title = document.getElementById('new-title').value.trim();
+  const cat = document.getElementById('new-cat').value;
+  const summary = document.getElementById('new-summary').value.trim() || '';
+  const content = document.getElementById('new-content').value.trim();
+  if (!title) { alert('กรุณาใส่ชื่อบทความ'); return; }
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  const { data: { user } } = await sb.auth.getUser();
+  const payload = { title, cat, summary, content, author: user.email };
+  let error;
+  if (id) {
+    ({ error } = await sb.from('articles').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('articles').insert(payload));
+  }
+  btn.disabled = false; btn.textContent = 'บันทึก';
+  if (error) { alert('เกิดข้อผิดพลาด: ' + error.message); return; }
+  closeModal();
+  await loadArticles();
+  showPage(cat);
+}
+
+async function deleteCurrentArticle() {
+  if (!currentArticleId) return;
+  if (!confirm('ยืนยันลบบทความนี้?')) return;
+  const { error } = await sb.from('articles').delete().eq('id', currentArticleId);
+  if (error) { alert('ลบไม่สำเร็จ: ' + error.message); return; }
+  closeArticle();
+  await loadArticles();
+}
+
+// ========== RENDER ==========
+const CAT_LABELS = { sop:'📋 SOP', product:'📦 สินค้า', hr:'👥 HR', marketing:'🎯 Marketing', org:'🏢 องค์กร', template:'📝 เทมเพลต' };
+
+function renderAll() {
+  const cats = ['sop','product','hr','marketing','org','template'];
+  renderCards(articles.slice(0, 9), 'home-cards');
+  cats.forEach(c => renderCards(articles.filter(a => a.cat === c), `${c}-cards`));
+}
+
+function renderCards(list, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!list.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📄</div><p>ยังไม่มีบทความ — กด "+ เพิ่มบทความ"</p></div>'; return; }
+  el.innerHTML = list.map(a => `
+    <div class="card ${a.cat}" onclick="openArticle('${a.id}')">
+      <div class="card-tag ${a.cat}">${CAT_LABELS[a.cat]||a.cat}</div>
+      <h3>${esc(a.title)}</h3>
+      <p>${esc(a.summary||'')}</p>
+      <div class="card-footer">
+        <div class="card-meta">✍️ ${esc(a.author||'')} &nbsp;•&nbsp; ${fmtDate(a.created_at)}</div>
+        <div class="card-actions" onclick="event.stopPropagation()">
+          <button class="btn-edit" onclick="openEditModal('${a.id}')">✏️</button>
+          <button class="btn-delete" onclick="deleteArticle('${a.id}')">🗑️</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateBadges() {
+  const cats = ['sop','product','hr','marketing','org','template'];
+  cats.forEach(c => {
+    const count = articles.filter(a => a.cat === c).length;
+    const el = document.getElementById('badge-' + c);
+    if (el) el.textContent = count;
+    const stat = document.getElementById('stat-' + c);
+    if (stat) stat.textContent = count;
+  });
+}
+
+// ========== NAVIGATION ==========
+function showPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pages = ['home','sop','product','hr','marketing','org','template'];
+  document.querySelectorAll('.nav-item')[pages.indexOf(page)]?.classList.add('active');
+  document.getElementById('search-results').classList.remove('visible');
+  document.getElementById('search-box').value = '';
+}
+
+// ========== SEARCH ==========
+function handleSearch(q) {
+  const sr = document.getElementById('search-results');
+  if (!q.trim()) {
+    sr.classList.remove('visible');
+    document.getElementById('page-' + currentPage)?.classList.add('active');
+    return;
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  sr.classList.add('visible');
+  const ql = q.toLowerCase();
+  const results = articles.filter(a =>
+    (a.title||'').toLowerCase().includes(ql) ||
+    (a.summary||'').toLowerCase().includes(ql) ||
+    (a.content||'').toLowerCase().includes(ql)
+  );
+  document.getElementById('search-summary').textContent = `พบ ${results.length} บทความสำหรับ "${q}"`;
+  document.getElementById('search-list').innerHTML = results.length ? results.map(a => `
+    <div class="result-item" onclick="openArticle('${a.id}')">
+      <div class="result-title">${hl(esc(a.title||''), q)}</div>
+      <div class="result-snippet">${hl(esc(a.summary||''), q)}</div>
+      <div class="result-tag">${CAT_LABELS[a.cat]||a.cat} • ${esc(a.author||'')}</div>
+    </div>
+  `).join('') : '<div class="empty"><div class="empty-icon">🔍</div><p>ไม่พบบทความ</p></div>';
+}
+
+// ========== ARTICLE ==========
+function openArticle(id) {
+  const a = articles.find(x => x.id == id);
+  if (!a) return;
+  currentArticleId = id;
+  document.getElementById('article-body').innerHTML = `
+    <h1>${esc(a.title)}</h1>
+    <div class="article-meta-bar">${CAT_LABELS[a.cat]||a.cat} &nbsp;•&nbsp; ${esc(a.author||'')} &nbsp;•&nbsp; ${fmtDate(a.created_at)}</div>
+    ${a.content || '<p>ไม่มีเนื้อหา</p>'}
+  `;
+  document.getElementById('article-breadcrumb').textContent = (CAT_LABELS[a.cat]||a.cat) + ' / ' + a.title;
+  document.getElementById('article-overlay').classList.add('open');
+}
+
+function closeArticle() {
+  document.getElementById('article-overlay').classList.remove('open');
+  currentArticleId = null;
+}
+
+// ========== MODAL ==========
+function openModal() {
+  document.getElementById('modal-title').textContent = '✏️ เพิ่มบทความใหม่';
+  document.getElementById('edit-id').value = '';
+  ['new-title','new-summary','new-content'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('btn-submit').textContent = 'บันทึก';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function openEditModal(id) {
+  const a = articles.find(x => x.id == id);
+  if (!a) return;
+  document.getElementById('modal-title').textContent = '✏️ แก้ไขบทความ';
+  document.getElementById('edit-id').value = a.id;
+  document.getElementById('new-title').value = a.title || '';
+  document.getElementById('new-cat').value = a.cat || 'sop';
+  document.getElementById('new-summary').value = a.summary || '';
+  document.getElementById('new-content').value = a.content || '';
+  document.getElementById('btn-submit').textContent = 'บันทึกการแก้ไข';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function editCurrentArticle() {
+  if (currentArticleId) { closeArticle(); openEditModal(currentArticleId); }
+}
+
+async function deleteArticle(id) {
+  if (!confirm('ยืนยันลบบทความนี้?')) return;
+  const { error } = await sb.from('articles').delete().eq('id', id);
+  if (error) { alert('ลบไม่สำเร็จ: ' + error.message); return; }
+  await loadArticles();
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+// ========== UTILS ==========
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function hl(text, q) {
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+  return text.replace(re,'<mark>$1</mark>');
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()+543}`;
+}
+
+// ========== INIT ==========
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeArticle(); closeModal(); }
+});
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) showApp(session.user);
+});
+</script>
+</body>
+</html>
